@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { ChatOpenAI } from '@langchain/openai';
 import { HumanMessage, SystemMessage, ToolMessage } from '@langchain/core/messages';
-import { executeCommandTool, listDirectoryTool, readFileTool, writeFileTool } from './all-tools.mjs';
+import { executeCommandTool, listDirectoryTool, readFileTool, writeFileTool, setCommandPrefix } from './all-tools.mjs';
 import chalk from 'chalk';
 
 const model = new ChatOpenAI({ 
@@ -23,6 +23,25 @@ const tools = [
 
 // 绑定工具到模型
 const modelWithTools = model.bindTools(tools);
+
+// 检查 Node 版本
+function checkNodeVersion() {
+    const currentVersion = parseInt(process.version.slice(1).split('.')[0]);
+    console.log(chalk.blue(`当前 Node 版本: v${currentVersion}`));
+    
+    if (currentVersion < 20) {
+        console.error(chalk.yellow(`需要 Node 20+，当前为 ${currentVersion}`));
+        setupCommandEnvironment(); // 即使当前版本不满足，在子进程中使用 Node 20 执行命令
+    } else {
+        console.log(chalk.green(`✅ Node 版本符合要求 (${currentVersion} >= 20)\n`));
+    }
+}
+
+// 设置命令执行前缀（子进程中使用 Node 20）
+function setupCommandEnvironment() {
+    const nodePrefix = 'source ~/.nvm/nvm.sh && nvm use 20 > /dev/null 2>&1 && ';
+    setCommandPrefix(nodePrefix);
+}
 
 // Agent 执行函数
 async function runAgentWithTools(query, maxIterations = 30) {
@@ -104,7 +123,38 @@ const case1 = `创建一个功能丰富的 React TodoList 中文应用：
 `;
 
 try {
+  checkNodeVersion();
+  setupCommandEnvironment();
   await runAgentWithTools(case1);
 } catch (error) {
   console.error(`\n❌ 错误: ${error.message}\n`);
 }
+
+```
+第 1 次循环
+├─ AI 思考 (modelWithTools.invoke)
+│  └─ 输入：[系统提示词, 用户任务]
+│  └─ 输出：AI 的决定（调用哪个工具或返回文字）
+├─ 消息历史更新
+│  └─ messages.push(response) → [系统提示词, 用户任务, AI响应]
+├─ 检查工具调用
+│  ├─ 如果 AI 没有工具调用 → 返回最终答案（结束）
+│  └─ 如果 AI 有工具调用 → 继续到下一步
+
+第 2 次循环（AI 调用了工具）
+├─ 执行工具
+│  ├─ 找到对应工具 (find by name)
+│  └─ 调用该工具 (foundTool.invoke)
+│     例如：execute_command 执行命令
+├─ 消息历史更新
+│  └─ messages.push(ToolMessage) → [系统提示词, 用户任务, AI响应, 工具结果]
+├─ 回到循环开始，AI 再次思考
+
+第 3 次循环（AI 基于工具结果再思考）
+├─ AI 思考 (modelWithTools.invoke)
+│  └─ 输入：[系统提示词, 用户任务, 前面AI的决定, 工具结果, ...]
+│  └─ AI 根据工具结果决定：继续调用其他工具还是返回答案
+├─ ...循环继续...
+
+...重复直到 AI 不再调用工具或达到30次限制
+```

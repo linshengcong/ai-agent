@@ -4,6 +4,16 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { z } from 'zod';
 
+// 配置：命令执行前缀（可通过环境变量或参数覆盖）
+const CONFIG = {
+  commandPrefix: process.env.COMMAND_PREFIX || '',
+};
+
+// 为工具集设置命令前缀
+function setCommandPrefix(prefix) {
+  CONFIG.commandPrefix = prefix;
+}
+
 // 1. 读取文件工具
 const readFileTool = tool(
   async ({ filePath }) => {
@@ -57,13 +67,13 @@ const executeCommandTool = tool(
     console.log(`  [工具调用] execute_command("${command}")${workingDirectory ? ` - 工作目录: ${workingDirectory}` : ''}`);
 
     return new Promise((resolve, reject) => {
-      // 解析命令和参数
-      const [cmd, ...args] = command.split(' ');
+      // 使用配置的命令前缀（可外部传入）
+      const fullCommand = CONFIG.commandPrefix ? CONFIG.commandPrefix + command : command;
 
-      const child = spawn(cmd, args, {
+      const child = spawn(fullCommand, [], {
         cwd,
         stdio: 'inherit', // 实时输出到控制台
-        shell: true,
+        shell: '/bin/bash',
       });
 
       let errorMsg = '';
@@ -117,4 +127,4 @@ const listDirectoryTool = tool(
   }
 );
 
-export { readFileTool, writeFileTool, executeCommandTool, listDirectoryTool };
+export { readFileTool, writeFileTool, executeCommandTool, listDirectoryTool, setCommandPrefix };
