@@ -68,7 +68,7 @@ server.registerResource('使用指南', 'docs://guide', {
 
 const transport = new StdioServerTransport();
 await server.connect(transport);    
-```
+/**
 总体结构：这是一个最小可用的 MCP Server
 这份 my-mcp-server.mjs 做了 4 件事：准备数据 → 创建 MCP 服务器实例 → 注册一个 Tool（可调用能力）→ 注册一个 Resource（可读取文档）→ 用 stdio 启动服务。
 
@@ -127,4 +127,4 @@ connect 之后：服务器开始监听来自客户端的请求（列出 tools/re
 7) 这份代码跑起来后，客户端能做什么？
 调用 tool：用 query_user + { userId: "001" } 获取用户信息文本
 读取 resource：读取 docs://guide 得到“使用指南”那段 text/plain 文本
-```
+ */
