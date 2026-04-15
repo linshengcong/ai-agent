@@ -33,7 +33,7 @@ const mcpClient = new MultiServerMCPClient({
     },
     "chrome-devtools": {
       "command": "npx",
-      "args": ["-y", "chrome-devtools-mcp@latest"]
+      "args": ["-y", "chrome-devtools-mcp@latest", "--isolated"]
     },
   }
 });
@@ -72,6 +72,13 @@ async function runAgentWithTools(query, maxIterations = 30) {
         } else if (toolResult && toolResult.text) {
           // 如果返回对象有 text 字段，优先使用
           contentStr = toolResult.text;
+        } else {
+          // 兜底：避免 contentStr 未定义导致 ToolMessage 构造报错
+          try {
+            contentStr = JSON.stringify(toolResult);
+          } catch {
+            contentStr = String(toolResult);
+          }
         }
 
         messages.push(new ToolMessage({
